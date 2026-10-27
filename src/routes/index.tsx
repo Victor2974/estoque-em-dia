@@ -1,5 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { Bar, BarChart, CartesianGrid, Cell, LabelList, XAxis, YAxis } from "recharts";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
@@ -114,7 +117,6 @@ function Index() {
 
   const totals = useMemo(() => stockTotals(rows, today ?? new Date("2026-10-27")), [rows, today]);
   const calendar = useMemo(() => expiringByMonth(rows, 12, today ?? new Date("2026-10-27")), [rows, today]);
-  const maxCount = Math.max(1, ...calendar.map((b) => b.count));
 
   const selected = rows.find((r) => r.id === selectedId) ?? null;
   const group = openStatus ? rows.filter((r) => r.status === openStatus) : [];
@@ -139,7 +141,14 @@ function Index() {
         </div>
       </header>
 
-      <section className="mx-auto grid max-w-6xl grid-cols-2 gap-4 px-6 pt-8 md:grid-cols-4">
+      <section className="mx-auto max-w-6xl px-6 pt-8">
+        <Tabs defaultValue="indicadores">
+          <TabsList className="mb-4 h-auto flex-wrap justify-start gap-1">
+            <TabsTrigger value="indicadores">Indicadores do estoque</TabsTrigger>
+            <TabsTrigger value="calendario">Calendário de vencimentos</TabsTrigger>
+          </TabsList>
+          <TabsContent value="indicadores" className="mt-0">
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {[
           { label: "Valor total em estoque", value: brlCompact(totals.total), hint: `${rows.length} lotes` },
           { label: "Valor em risco", value: brlCompact(totals.atRisk), hint: "vencidos + vencendo em 30 dias" },
@@ -152,6 +161,40 @@ function Index() {
             <p className="mt-1 text-xs text-muted-foreground">{c.hint}</p>
           </div>
         ))}
+            </div>
+          </TabsContent>
+          <TabsContent value="calendario" className="mt-0">
+            <h2 className="font-display text-xl text-card-foreground">Calendário de vencimentos</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Lotes por mês · próximos 12 meses</p>
+            <div className="mt-5 overflow-x-auto">
+              <ChartContainer
+                className="h-72 w-full min-w-[720px] aspect-auto"
+                config={{ count: { label: "Lotes", color: "var(--primary)" } }}
+                aria-label="Gráfico de colunas: quantidade de lotes vencidos e a vencer por mês"
+              >
+                <BarChart data={calendar} accessibilityLayer margin={{ top: 24, right: 12, bottom: 8, left: 0 }}>
+                  <CartesianGrid vertical={false} stroke="var(--border)" />
+                  <XAxis dataKey="label" tickLine={false} axisLine={false} interval={0} tickMargin={12} fontSize={11} />
+                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={30} />
+                  <ChartTooltip content={
+                    <ChartTooltipContent formatter={(value, _name, item) => (
+                      <div className="grid gap-1">
+                        <span>{value} lotes</span>
+                        <span className="text-muted-foreground">Valor em estoque: {brl(item.payload.value)}</span>
+                      </div>
+                    )} />
+                  } />
+                  <Bar dataKey="count" fill="var(--color-count)" radius={[4, 4, 0, 0]} maxBarSize={44} isAnimationActive={false}>
+                    {calendar.map((b) => (
+                      <Cell key={b.key} fill={b.key === "vencidos" ? "var(--destructive)" : "var(--primary)"} />
+                    ))}
+                    <LabelList dataKey="count" position="top" fill="var(--foreground)" fontSize={12} />
+                  </Bar>
+                </BarChart>
+              </ChartContainer>
+            </div>
+          </TabsContent>
+        </Tabs>
       </section>
 
       <section className="mx-auto grid max-w-6xl grid-cols-2 gap-4 px-6 py-8 md:grid-cols-4">
@@ -170,34 +213,6 @@ function Index() {
             </p>
           </button>
         ))}
-      </section>
-
-      <section className="mx-auto max-w-6xl px-6 pb-4">
-        <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="font-display text-xl text-card-foreground">Calendário de vencimentos</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Quantos lotes vencem em cada mês, e o valor parado em cada um deles.
-          </p>
-          <ul className="mt-5 space-y-3">
-            {calendar.map((b) => (
-              <li key={b.key} className="flex items-center gap-3">
-                <span className="w-16 shrink-0 font-mono text-xs uppercase tracking-wide text-muted-foreground">
-                  {b.label}
-                </span>
-                <span className="h-3 flex-1 overflow-hidden rounded-full bg-muted">
-                  <span
-                    className={`block h-full rounded-full ${b.key === "vencidos" ? "bg-destructive" : "bg-primary"}`}
-                    style={{ width: `${(b.count / maxCount) * 100}%` }}
-                  />
-                </span>
-                <span className="w-14 shrink-0 text-right text-sm text-card-foreground">{b.count} lotes</span>
-                <span className="w-24 shrink-0 text-right text-xs text-muted-foreground">
-                  {b.value ? brlCompact(b.value) : "—"}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
       </section>
 
       <section className="mx-auto max-w-6xl px-6 pb-16">
