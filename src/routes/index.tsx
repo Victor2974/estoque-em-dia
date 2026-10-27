@@ -30,6 +30,10 @@ const statusClass: Record<Status, string> = {
   ok: "bg-success text-success-foreground",
 };
 
+// Busca tolerante a acentos: "xaraes" encontra "Xaraés".
+const normalize = (s: string) =>
+  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
 function Index() {
   const [today, setToday] = useState<Date | null>(null);
   const [query, setQuery] = useState("");
