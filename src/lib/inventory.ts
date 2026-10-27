@@ -51,7 +51,7 @@ export type Status = "vencido" | "critico" | "atencao" | "ok";
 
 export function daysUntil(expiry: string, today = new Date()): number {
   const t = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-  const [y, m, d] = expiry.split("-").map(Number);
+  const [y = 1970, m = 1, d = 1] = expiry.split("-").map(Number);
   return Math.round((new Date(y, m - 1, d).getTime() - t) / 86400000);
 }
 
