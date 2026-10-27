@@ -3,19 +3,25 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
-import { seeds, daysUntil, statusFor, type Status } from "@/lib/inventory";
+import {
+  seeds, daysUntil, statusFor, stockTotals, expiringByMonth, availableFor,
+  stockValueFor, hectaresCovered, seedClassInfo, statusRange, lotStateInfo,
+  contact, type Status, type SeedClass,
+} from "@/lib/inventory";
+
+export const routeHead = () => ({
+  meta: [
+    { title: "Zênite Sementes | Estoque e Validades" },
+    { name: "description", content: "Catálogo de sementes em estoque, com lote, germinação e validade de cada partida." },
+    { property: "og:title", content: "Zênite Sementes | Estoque e Validades" },
+    { property: "og:description", content: "Veja quais sementes temos em estoque e quando vence a análise de cada lote." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary_large_image" },
+  ],
+});
 
 export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "Zênite Sementes | Estoque e Validades" },
-      { name: "description", content: "Catálogo de sementes em estoque, com lote, germinação e validade de cada partida." },
-      { property: "og:title", content: "Zênite Sementes | Estoque e Validades" },
-      { property: "og:description", content: "Veja quais sementes temos em estoque e quando vence a análise de cada lote." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
+  head: routeHead,
   component: Index,
 });
 
@@ -62,12 +68,16 @@ const groupTitle = (s: Status, n: number) => {
   }
 };
 
-
 // Busca tolerante a acentos: "xaraes" encontra "Xaraés".
 const normalize = (s: string) =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const brlCompact = (v: number) =>
+  new Intl.NumberFormat("pt-BR", {
+    style: "currency", currency: "BRL", notation: "compact", maximumFractionDigits: 1,
+  }).format(v);
+const num = (v: number) => v.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
 const fmt = (iso: string) => iso.split("-").reverse().join("/");
 
 function Index() {
@@ -77,7 +87,6 @@ function Index() {
   const [seedClass, setSeedClass] = useState("Todas as classes");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [openStatus, setOpenStatus] = useState<Status | null>(null);
-
 
   useEffect(() => setToday(new Date()), []);
 
@@ -93,7 +102,7 @@ function Index() {
         (s) =>
           (crop === "Todas as culturas" || s.crop === crop) &&
           (seedClass === "Todas as classes" || s.seedClass === seedClass) &&
-          normalize(`${s.cultivar} ${s.crop} ${s.lot}`).includes(q),
+          normalize(`${s.cultivar} ${s.crop} ${s.lot} ${s.supplier} ${s.harvest}`).includes(q),
       )
       .sort((a, b) => a.days - b.days);
   }, [today, query, crop, seedClass]);
@@ -103,9 +112,12 @@ function Index() {
     {} as Record<Status, number>,
   );
 
+  const totals = useMemo(() => stockTotals(rows, today ?? new Date("2026-10-27")), [rows, today]);
+  const calendar = useMemo(() => expiringByMonth(rows, 12, today ?? new Date("2026-10-27")), [rows, today]);
+  const maxCount = Math.max(1, ...calendar.map((b) => b.count));
+
   const selected = rows.find((r) => r.id === selectedId) ?? null;
   const group = openStatus ? rows.filter((r) => r.status === openStatus) : [];
-
 
   const crops = ["Todas as culturas", ...Array.from(new Set(seeds.map((s) => s.crop)))];
   const classes = ["Todas as classes", ...Array.from(new Set(seeds.map((s) => s.seedClass)))];
@@ -121,10 +133,26 @@ function Index() {
             evitar perdas por vencimento.
           </p>
           <p className="mt-4 font-mono text-xs uppercase tracking-widest opacity-70">
-            {seeds.length} lotes · {new Set(seeds.map((s) => s.crop)).size} culturas
+            {seeds.length} lotes · {new Set(seeds.map((s) => s.crop)).size} culturas ·
+            atualizado em {today ? fmt(today.toISOString().slice(0, 10)) : "—"}
           </p>
         </div>
       </header>
+
+      <section className="mx-auto grid max-w-6xl grid-cols-2 gap-4 px-6 pt-8 md:grid-cols-4">
+        {[
+          { label: "Valor total em estoque", value: brlCompact(totals.total), hint: `${rows.length} lotes` },
+          { label: "Valor em risco", value: brlCompact(totals.atRisk), hint: "vencidos + vencendo em 30 dias" },
+          { label: "Sementes reservadas", value: `${num(totals.reservedUnits)} emb.`, hint: "já comprometidas com cliente" },
+          { label: "Área que o estoque cobre", value: `${num(totals.area)} ha`, hint: "na dose de semeadura de cada cultura" },
+        ].map((c) => (
+          <div key={c.label} className="rounded-lg border border-border bg-card p-5">
+            <p className="text-sm text-muted-foreground">{c.label}</p>
+            <p className="mt-2 font-display text-3xl text-card-foreground">{c.value}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{c.hint}</p>
+          </div>
+        ))}
+      </section>
 
       <section className="mx-auto grid max-w-6xl grid-cols-2 gap-4 px-6 py-8 md:grid-cols-4">
         {(["vencido", "critico", "atencao", "ok"] as Status[]).map((s) => (
@@ -141,8 +169,35 @@ function Index() {
               Clique para ver quais
             </p>
           </button>
-
         ))}
+      </section>
+
+      <section className="mx-auto max-w-6xl px-6 pb-4">
+        <div className="rounded-lg border border-border bg-card p-6">
+          <h2 className="font-display text-xl text-card-foreground">Calendário de vencimentos</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Quantos lotes vencem em cada mês, e o valor parado em cada um deles.
+          </p>
+          <ul className="mt-5 space-y-3">
+            {calendar.map((b) => (
+              <li key={b.key} className="flex items-center gap-3">
+                <span className="w-16 shrink-0 font-mono text-xs uppercase tracking-wide text-muted-foreground">
+                  {b.label}
+                </span>
+                <span className="h-3 flex-1 overflow-hidden rounded-full bg-muted">
+                  <span
+                    className={`block h-full rounded-full ${b.key === "vencidos" ? "bg-destructive" : "bg-primary"}`}
+                    style={{ width: `${(b.count / maxCount) * 100}%` }}
+                  />
+                </span>
+                <span className="w-14 shrink-0 text-right text-sm text-card-foreground">{b.count} lotes</span>
+                <span className="w-24 shrink-0 text-right text-xs text-muted-foreground">
+                  {b.value ? brlCompact(b.value) : "—"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </section>
 
       <section className="mx-auto max-w-6xl px-6 pb-16">
@@ -150,7 +205,7 @@ function Index() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar por cultivar, cultura ou lote..."
+            placeholder="Buscar por cultivar, cultura, lote, safra ou fornecedor..."
             className="flex-1 rounded-md border border-input bg-card px-4 py-2 text-foreground outline-none focus:ring-2 focus:ring-ring"
           />
           <select
@@ -173,7 +228,7 @@ function Index() {
           <table className="w-full text-left text-sm">
             <thead className="bg-muted text-muted-foreground">
               <tr>
-                {["Semente", "Cultura", "Lote", "Valor", "Quantidade", "Validade", "Situação"].map((h) => (
+                {["Semente", "Cultura", "Safra", "Lote", "Valor", "Disponível", "Validade", "Situação"].map((h) => (
                   <th key={h} className="px-4 py-3 font-medium">{h}</th>
                 ))}
               </tr>
@@ -188,11 +243,17 @@ function Index() {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{s.crop}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{s.harvest}</td>
                   <td className="px-4 py-3 font-mono text-xs">{s.lot}</td>
                   <td className="whitespace-nowrap px-4 py-3 font-medium">{brl(s.price)}<div className="text-xs font-normal text-muted-foreground">por unidade</div></td>
-                  <td className="px-4 py-3">{s.quantity} {s.unit}</td>
+                  <td className="whitespace-nowrap px-4 py-3">
+                    {num(availableFor(s))} {s.unit}
+                    <div className="text-xs text-muted-foreground">
+                      de {num(s.quantity)} · {num(s.reserved)} reservado{s.reserved === 1 ? "" : "s"}
+                    </div>
+                  </td>
                   <td className="px-4 py-3">
-                    {s.expiry.split("-").reverse().join("/")}
+                    {fmt(s.expiry)}
                     <div className="text-xs text-muted-foreground">
                       {s.days < 0 ? `há ${-s.days} dias` : `em ${s.days} dias`}
                     </div>
@@ -206,7 +267,7 @@ function Index() {
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
                     Nenhuma semente encontrada.
                   </td>
                 </tr>
@@ -221,23 +282,93 @@ function Index() {
         </p>
       </section>
 
+      <section className="border-t border-border bg-muted/40">
+        <div className="mx-auto grid max-w-6xl gap-8 px-6 py-10 md:grid-cols-2">
+          <div>
+            <h2 className="font-display text-xl text-card-foreground">Como ler os prazos</h2>
+            <ul className="mt-3 space-y-2 text-sm">
+              {(["vencido", "critico", "atencao", "ok"] as Status[]).map((s) => (
+                <li key={s} className="flex items-start gap-3">
+                  <span className={`mt-1 inline-block h-2 w-8 shrink-0 rounded-full ${statusClass[s]}`} />
+                  <span className="text-card-foreground">
+                    <span className="font-medium">{statusLabel[s]}</span>
+                    <span className="text-muted-foreground"> — {statusRange[s]}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <h3 className="mt-6 font-display text-lg text-card-foreground">Reservado × disponível</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              A quantidade da tabela é o que ainda pode ser vendido. O que já está comprometido com cliente
+              aparece como reservado, e o total do lote fica na janela de detalhes.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="font-display text-xl text-card-foreground">Classes de semente</h2>
+            <dl className="mt-3 space-y-3 text-sm">
+              {(Object.keys(seedClassInfo) as SeedClass[]).map((c) => (
+                <div key={c}>
+                  <dt className="font-medium text-card-foreground">{c}</dt>
+                  <dd className="text-muted-foreground">{seedClassInfo[c]}</dd>
+                </div>
+              ))}
+            </dl>
+            <h3 className="mt-6 font-display text-lg text-card-foreground">Estado do lote vencido</h3>
+            <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+              {Object.entries(lotStateInfo).map(([k, v]) => (
+                <li key={k}><span className="font-medium text-card-foreground">{k}</span> — {v}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <footer className="border-t border-border bg-primary text-primary-foreground">
+        <div className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-10 md:flex-row md:items-start md:justify-between">
+          <div>
+            <p className="font-mono text-xs uppercase tracking-[0.3em] opacity-70">Zênite Sementes</p>
+            <p className="mt-3 font-display text-2xl">Fale com a gente</p>
+            <p className="mt-3 text-sm opacity-80">
+              WhatsApp {contact.whatsapp} · Telefone {contact.phone}
+            </p>
+            <p className="text-sm opacity-80">{contact.address}</p>
+            <p className="text-sm opacity-80">Atendimento: {contact.hours}</p>
+          </div>
+          <p className="max-w-xs text-xs opacity-70">
+            Página de apresentação do estoque. Preços, contatos e parte dos dados são de exemplo e ainda
+            serão conferidos pela loja.
+          </p>
+        </div>
+      </footer>
+
       <Dialog open={!!selected} onOpenChange={(o) => !o && setSelectedId(null)}>
         <DialogContent>
           {selected && (
             <>
               <DialogHeader>
                 <DialogTitle>{selected.cultivar}</DialogTitle>
-                <DialogDescription>{selected.crop} · lote {selected.lot}</DialogDescription>
+                <DialogDescription>
+                  {selected.crop} · lote {selected.lot} · safra {selected.harvest} · {selected.supplier}
+                </DialogDescription>
               </DialogHeader>
               <dl className="grid grid-cols-2 gap-4 text-sm">
                 {[
                   ["Valor", `${brl(selected.price)} / ${selected.unit}`],
-                  ["Quantidade", `${selected.quantity} ${selected.unit}`],
+                  ["Valor do lote", brl(stockValueFor(selected))],
+                  ["Disponível", `${num(availableFor(selected))} ${selected.unit}`],
+                  ["Reservado", `${num(selected.reserved)} ${selected.unit}`],
                   ["Germinação", `${selected.germination}%`],
                   ["Pureza", `${selected.purity}%`],
                   ["Classe", selected.seedClass],
                   ["Tratada", selected.treated ? "Sim" : "Não"],
+                  ["Peso por embalagem", `${num(selected.basePerPackage)} ${selected.baseUnit}`],
+                  ["Dose de semeadura", `${num(selected.seedRatePerHa)} ${selected.baseUnit}/ha`],
+                  ["Área que cobre", `${num(hectaresCovered(selected))} ha`],
+                  ["Certificado", selected.rasCode || "sem lacre oficial"],
                   ["Local", selected.location],
+                  ["Guarda", selected.storage],
+                  ["Estado do lote", `${selected.lotState} — ${lotStateInfo[selected.lotState]}`],
                   ["Validade", fmt(selected.expiry)],
                 ].map(([k, v]) => (
                   <div key={k}>
@@ -267,7 +398,12 @@ function Index() {
                     <li key={s.id} className="flex items-center justify-between gap-4 py-3">
                       <div>
                         <div className="font-medium text-foreground">{s.cultivar}</div>
-                        <div className="text-xs text-muted-foreground">{s.crop} · lote {s.lot}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {s.crop} · lote {s.lot} · safra {s.harvest}
+                        </div>
+                        {s.lotState !== "no estoque" && (
+                          <div className="mt-1 text-xs text-muted-foreground">{s.lotState}</div>
+                        )}
                       </div>
                       <div className="text-right">
                         <div className={`font-medium ${openStatus === "vencido" ? "text-destructive" : "text-foreground"}`}>
