@@ -159,9 +159,11 @@ describe("resumo e calendário de vencimentos", () => {
 
   it("calendário começa pelos vencidos e cobre todos os lotes", () => {
     const buckets = expiringByMonth(seeds, 12, base);
-    expect(buckets[0].key).toBe("vencidos");
-    expect(buckets[0].count).toBe(2);
+    const first = buckets[0];
+    expect(first?.key).toBe("vencidos");
+    expect(first?.count).toBe(2);
     expect(buckets.reduce((s, b) => s + b.count, 0)).toBe(seeds.length);
+
   });
 });
 

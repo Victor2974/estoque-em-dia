@@ -168,9 +168,8 @@ export interface MonthBucket {
  */
 export function expiringByMonth(lots: SeedLot[], months = 12, today = new Date()): MonthBucket[] {
   const base = new Date(today.getFullYear(), today.getMonth(), 1);
-  const buckets: MonthBucket[] = [
-    { key: "vencidos", label: "Vencidos", count: 0, value: 0 },
-  ];
+  const expiredBucket: MonthBucket = { key: "vencidos", label: "Vencidos", count: 0, value: 0 };
+  const buckets: MonthBucket[] = [expiredBucket];
   for (let i = 0; i < months; i++) {
     const d = new Date(base.getFullYear(), base.getMonth() + i, 1);
     buckets.push({
@@ -185,10 +184,11 @@ export function expiringByMonth(lots: SeedLot[], months = 12, today = new Date()
     const value = stockValueFor(lot);
     const days = daysUntil(lot.expiry, today);
     if (days < 0) {
-      buckets[0].count += 1;
-      buckets[0].value += value;
+      expiredBucket.count += 1;
+      expiredBucket.value += value;
       continue;
     }
+
     const [y = 1970, m = 1] = lot.expiry.split("-").map(Number);
     const key = `${y}-${String(m).padStart(2, "0")}`;
     const bucket = buckets.find((b) => b.key === key);
