@@ -46,7 +46,8 @@ function Index() {
   const [crop, setCrop] = useState("Todas as culturas");
   const [seedClass, setSeedClass] = useState("Todas as classes");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [showExpired, setShowExpired] = useState(false);
+  const [openStatus, setOpenStatus] = useState<Status | null>(null);
+
 
   useEffect(() => setToday(new Date()), []);
 
