@@ -128,7 +128,15 @@ export function PainelIA() {
     }
   }, [carregar]);
 
-  useEffect(() => { void atualizar(); return () => { if (espera.current) window.clearInterval(espera.current); }; }, [atualizar]);
+  useEffect(() => {
+    void atualizar();
+    const recarregar = () => void atualizar();
+    window.addEventListener("lotes-alterados", recarregar);
+    return () => {
+      window.removeEventListener("lotes-alterados", recarregar);
+      if (espera.current) window.clearInterval(espera.current);
+    };
+  }, [atualizar]);
 
   const clicarRodar = async () => {
     setRodando(true);

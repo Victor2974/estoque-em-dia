@@ -76,6 +76,8 @@ A IA roda só no n8n. O site calcula a previsão e guarda as decisões:
 3. **`POST /api/n8n/propostas`**: recebe as sugestões da IA, confere de novo (ação da lista, quantidade ≤ sobra, desconto 5–25%; o que falhar vira regra automática), grava como pendente e devolve a `mensagem` do Telegram.
 4. **Painel** (`src/components/painel/PainelIA.tsx`): propostas com aprovar/rejeitar, previsão por lote, prazo de corte por cultura, 6 resumos mensais (molde) e memória da IA.
 
+**Cadastro de lotes**: botão "+ Adicionar lote" no topo do site (`src/components/cadastro/NovoLote.tsx` → `cadastro.server.ts`). Com Supabase grava em `lotes_sementes`; sem ele fica na memória do servidor (modelo).
+
 Tabelas: rode `supabase/migrations/20261027120000_painel_ia.sql`. Sem Supabase o painel funciona com memória do servidor. Workflow do n8n: `n8n/analise-validade-ia.json`.
 
 ## Development

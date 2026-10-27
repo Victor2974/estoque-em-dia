@@ -21,7 +21,7 @@ const painel = {
   resumos: resumosMensais(seeds, hoje),
   memoria: memoriaIA(seeds, hoje),
 };
-const decidir = vi.fn(async () => ({ ok: true }));
+const decidir = vi.fn(async (_a: unknown) => ({ ok: true }));
 
 vi.mock("@tanstack/react-start", () => ({
   useServerFn: (fn: { nome: string }) => fn,

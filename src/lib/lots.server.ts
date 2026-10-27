@@ -65,7 +65,8 @@ export type LotSource = "supabase" | "exemplo";
  * para a vitrine nunca ficar vazia.
  */
 export async function loadLots(): Promise<{ lots: SeedLot[]; source: LotSource }> {
-  if (!isSupabaseConfigured()) return { lots: seeds, source: "exemplo" };
+  const { lotesCadastrados } = await import("@/lib/cadastro.server");
+  if (!isSupabaseConfigured()) return { lots: [...seeds, ...lotesCadastrados()], source: "exemplo" };
   try {
     const { data, error } = await reader()
       .from(TABLE)
@@ -76,6 +77,6 @@ export async function loadLots(): Promise<{ lots: SeedLot[]; source: LotSource }
     return { lots: (data as LotRow[]).map(rowToLot), source: "supabase" };
   } catch (e) {
     console.error("[supabase] falha ao ler lotes, usando dados de exemplo:", e);
-    return { lots: seeds, source: "exemplo" };
+    return { lots: [...seeds, ...lotesCadastrados()], source: "exemplo" };
   }
 }
