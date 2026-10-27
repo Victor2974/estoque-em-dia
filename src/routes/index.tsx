@@ -33,6 +33,36 @@ const statusClass: Record<Status, string> = {
   ok: "bg-success text-success-foreground",
 };
 
+const statusHover: Record<Status, string> = {
+  vencido: "hover:border-destructive",
+  critico: "hover:border-warning",
+  atencao: "hover:border-caution",
+  ok: "hover:border-success",
+};
+
+// Texto da janela que abre ao clicar em cada caixinha de situação.
+const groupDesc: Record<Status, string> = {
+  vencido: "Lotes cuja validade já passou.",
+  critico: "Lotes que vencem nos próximos 30 dias.",
+  atencao: "Lotes que vencem entre 31 e 90 dias.",
+  ok: "Lotes com validade acima de 90 dias.",
+};
+
+const groupTitle = (s: Status, n: number) => {
+  const one = n === 1;
+  switch (s) {
+    case "vencido":
+      return `${n} ${one ? "semente vencida" : "sementes vencidas"}`;
+    case "critico":
+      return `${n} ${one ? "semente que vence" : "sementes que vencem"} em até 30 dias`;
+    case "atencao":
+      return `${n} ${one ? "semente que vence" : "sementes que vencem"} em até 90 dias`;
+    default:
+      return `${n} ${one ? "semente" : "sementes"} dentro do prazo`;
+  }
+};
+
+
 // Busca tolerante a acentos: "xaraes" encontra "Xaraés".
 const normalize = (s: string) =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -46,7 +76,8 @@ function Index() {
   const [crop, setCrop] = useState("Todas as culturas");
   const [seedClass, setSeedClass] = useState("Todas as classes");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [showExpired, setShowExpired] = useState(false);
+  const [openStatus, setOpenStatus] = useState<Status | null>(null);
+
 
   useEffect(() => setToday(new Date()), []);
 
@@ -73,7 +104,8 @@ function Index() {
   );
 
   const selected = rows.find((r) => r.id === selectedId) ?? null;
-  const expired = rows.filter((r) => r.status === "vencido");
+  const group = openStatus ? rows.filter((r) => r.status === openStatus) : [];
+
 
   const crops = ["Todas as culturas", ...Array.from(new Set(seeds.map((s) => s.crop)))];
   const classes = ["Todas as classes", ...Array.from(new Set(seeds.map((s) => s.seedClass)))];
@@ -96,19 +128,20 @@ function Index() {
 
       <section className="mx-auto grid max-w-6xl grid-cols-2 gap-4 px-6 py-8 md:grid-cols-4">
         {(["vencido", "critico", "atencao", "ok"] as Status[]).map((s) => (
-          <div
+          <button
             key={s}
-            role={s === "vencido" ? "button" : undefined}
-            tabIndex={s === "vencido" ? 0 : undefined}
-            onClick={s === "vencido" ? () => setShowExpired(true) : undefined}
-            onKeyDown={s === "vencido" ? (e) => e.key === "Enter" && setShowExpired(true) : undefined}
-            className={`rounded-lg border border-border bg-card p-5 ${s === "vencido" ? "cursor-pointer transition hover:border-destructive" : ""}`}
+            type="button"
+            onClick={() => setOpenStatus(s)}
+            className={`cursor-pointer rounded-lg border border-border bg-card p-5 text-left transition ${statusHover[s]}`}
           >
             <span className={`inline-block h-2 w-8 rounded-full ${statusClass[s]}`} />
             <p className="mt-3 font-display text-3xl text-card-foreground">{counts[s] ?? 0}</p>
             <p className="text-sm text-muted-foreground">{statusLabel[s]}</p>
-            {s === "vencido" && <p className="mt-1 text-xs text-destructive">Clique para ver quais</p>}
-          </div>
+            <p className={`mt-1 text-xs ${s === "vencido" ? "text-destructive" : "text-muted-foreground"}`}>
+              Clique para ver quais
+            </p>
+          </button>
+
         ))}
       </section>
 
@@ -218,34 +251,41 @@ function Index() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showExpired} onOpenChange={setShowExpired}>
+      <Dialog open={openStatus !== null} onOpenChange={(o) => !o && setOpenStatus(null)}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {expired.length} {expired.length === 1 ? "semente vencida" : "sementes vencidas"}
-            </DialogTitle>
-            <DialogDescription>Lotes cuja validade já passou.</DialogDescription>
-          </DialogHeader>
-          {expired.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhum lote vencido.</p>
-          ) : (
-            <ul className="divide-y divide-border text-sm">
-              {expired.map((s) => (
-                <li key={s.id} className="flex items-center justify-between gap-4 py-3">
-                  <div>
-                    <div className="font-medium text-foreground">{s.cultivar}</div>
-                    <div className="text-xs text-muted-foreground">{s.crop} · lote {s.lot}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-medium text-destructive">{fmt(s.expiry)}</div>
-                    <div className="text-xs text-muted-foreground">há {-s.days} dias</div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+          {openStatus && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{groupTitle(openStatus, group.length)}</DialogTitle>
+                <DialogDescription>{groupDesc[openStatus]}</DialogDescription>
+              </DialogHeader>
+              {group.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhum lote nesta situação.</p>
+              ) : (
+                <ul className="divide-y divide-border text-sm">
+                  {group.map((s) => (
+                    <li key={s.id} className="flex items-center justify-between gap-4 py-3">
+                      <div>
+                        <div className="font-medium text-foreground">{s.cultivar}</div>
+                        <div className="text-xs text-muted-foreground">{s.crop} · lote {s.lot}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className={`font-medium ${openStatus === "vencido" ? "text-destructive" : "text-foreground"}`}>
+                          {fmt(s.expiry)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {s.days < 0 ? `há ${-s.days} dias` : `em ${s.days} dias`}
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
           )}
         </DialogContent>
       </Dialog>
+
     </main>
   );
 }

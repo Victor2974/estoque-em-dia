@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { seeds, type Crop } from "@/lib/inventory";
+import { seeds, daysUntil, statusFor, type Crop, type Status } from "@/lib/inventory";
+
 
 const CROPS: Crop[] = [
   "Soja",
@@ -61,4 +62,23 @@ describe("estoque nichado em sementes", () => {
       expect(lot.expiry).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     }
   });
+
+  // Cada caixinha clicável mostra exatamente os lotes da sua faixa de validade.
+  it("cada lote cai na faixa de validade certa", () => {
+    const base = new Date("2026-10-27T12:00:00Z");
+    const expected: Record<Status, (d: number) => boolean> = {
+      vencido: (d) => d < 0,
+      critico: (d) => d >= 0 && d <= 30,
+      atencao: (d) => d > 30 && d <= 90,
+      ok: (d) => d > 90,
+    };
+    for (const lot of seeds) {
+      const days = daysUntil(lot.expiry, base);
+      expect(statusFor(days)).toMatch(/^\w+$/);
+      expect(expected[statusFor(days)](days)).toBe(true);
+    }
+    const vencidos = seeds.filter((l) => statusFor(daysUntil(l.expiry, base)) === "vencido");
+    expect(vencidos.map((l) => l.cultivar).sort()).toEqual(["NH 91244 RSF", "UPF 22"]);
+  });
 });
+
