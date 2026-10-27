@@ -44,7 +44,7 @@ function Index() {
 
   const rows = useMemo(() => {
     const base = today ?? new Date("2026-10-27");
-    const q = query.toLowerCase();
+    const q = normalize(query);
     return seeds
       .map((s) => {
         const days = daysUntil(s.expiry, base);
@@ -54,7 +54,7 @@ function Index() {
         (s) =>
           (crop === "Todas as culturas" || s.crop === crop) &&
           (seedClass === "Todas as classes" || s.seedClass === seedClass) &&
-          `${s.cultivar} ${s.crop} ${s.lot}`.toLowerCase().includes(q),
+          normalize(`${s.cultivar} ${s.crop} ${s.lot}`).includes(q),
       )
       .sort((a, b) => a.days - b.days);
   }, [today, query, crop, seedClass]);
