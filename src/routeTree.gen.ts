@@ -10,6 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiN8nAnaliseRouteImport } from './routes/api/n8n/analise'
+import { Route as ApiN8nPropostasRouteImport } from './routes/api/n8n/propostas'
 import { Route as ApiN8nStatusRouteImport } from './routes/api/n8n/status'
 import { Route as ApiN8nVencimentosRouteImport } from './routes/api/n8n/vencimentos'
 import { Route as ApiN8nLotesIndexRouteImport } from './routes/api/n8n/lotes/index'
@@ -19,6 +21,16 @@ import { Route as ApiN8nLotesLoteMovimentacoesRouteImport } from './routes/api/n
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiN8nAnaliseRoute = ApiN8nAnaliseRouteImport.update({
+  id: '/api/n8n/analise',
+  path: '/api/n8n/analise',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiN8nPropostasRoute = ApiN8nPropostasRouteImport.update({
+  id: '/api/n8n/propostas',
+  path: '/api/n8n/propostas',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiN8nStatusRoute = ApiN8nStatusRouteImport.update({
@@ -50,6 +62,8 @@ const ApiN8nLotesLoteMovimentacoesRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/n8n/analise': typeof ApiN8nAnaliseRoute
+  '/api/n8n/propostas': typeof ApiN8nPropostasRoute
   '/api/n8n/status': typeof ApiN8nStatusRoute
   '/api/n8n/vencimentos': typeof ApiN8nVencimentosRoute
   '/api/n8n/lotes/': typeof ApiN8nLotesIndexRoute
@@ -58,6 +72,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/n8n/analise': typeof ApiN8nAnaliseRoute
+  '/api/n8n/propostas': typeof ApiN8nPropostasRoute
   '/api/n8n/status': typeof ApiN8nStatusRoute
   '/api/n8n/vencimentos': typeof ApiN8nVencimentosRoute
   '/api/n8n/lotes': typeof ApiN8nLotesIndexRoute
@@ -67,6 +83,8 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/n8n/analise': typeof ApiN8nAnaliseRoute
+  '/api/n8n/propostas': typeof ApiN8nPropostasRoute
   '/api/n8n/status': typeof ApiN8nStatusRoute
   '/api/n8n/vencimentos': typeof ApiN8nVencimentosRoute
   '/api/n8n/lotes/': typeof ApiN8nLotesIndexRoute
@@ -77,6 +95,8 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/api/n8n/analise'
+    | '/api/n8n/propostas'
     | '/api/n8n/status'
     | '/api/n8n/vencimentos'
     | '/api/n8n/lotes/'
@@ -85,6 +105,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/api/n8n/analise'
+    | '/api/n8n/propostas'
     | '/api/n8n/status'
     | '/api/n8n/vencimentos'
     | '/api/n8n/lotes'
@@ -93,6 +115,8 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/api/n8n/analise'
+    | '/api/n8n/propostas'
     | '/api/n8n/status'
     | '/api/n8n/vencimentos'
     | '/api/n8n/lotes/'
@@ -102,6 +126,8 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiN8nAnaliseRoute: typeof ApiN8nAnaliseRoute
+  ApiN8nPropostasRoute: typeof ApiN8nPropostasRoute
   ApiN8nStatusRoute: typeof ApiN8nStatusRoute
   ApiN8nVencimentosRoute: typeof ApiN8nVencimentosRoute
   ApiN8nLotesIndexRoute: typeof ApiN8nLotesIndexRoute
@@ -116,6 +142,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/n8n/analise': {
+      id: '/api/n8n/analise'
+      path: '/api/n8n/analise'
+      fullPath: '/api/n8n/analise'
+      preLoaderRoute: typeof ApiN8nAnaliseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/n8n/propostas': {
+      id: '/api/n8n/propostas'
+      path: '/api/n8n/propostas'
+      fullPath: '/api/n8n/propostas'
+      preLoaderRoute: typeof ApiN8nPropostasRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/n8n/status': {
@@ -158,6 +198,8 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiN8nAnaliseRoute: ApiN8nAnaliseRoute,
+  ApiN8nPropostasRoute: ApiN8nPropostasRoute,
   ApiN8nStatusRoute: ApiN8nStatusRoute,
   ApiN8nVencimentosRoute: ApiN8nVencimentosRoute,
   ApiN8nLotesIndexRoute: ApiN8nLotesIndexRoute,

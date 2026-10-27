@@ -33,9 +33,7 @@ Segurança: leitura pública dos lotes (é uma vitrine); escrita só pelo servid
 | `SUPABASE_SERVICE_ROLE_KEY` | escrita pela API do n8n |
 | `N8N_API_KEY` | segredo que o n8n manda no header (gere com `openssl rand -hex 32`) |
 | `N8N_WEBHOOK_URL` | opcional: webhook do n8n avisado a cada alteração |
-| `GEMINI_API_KEY` | assistente de IA do site (chave do Google AI Studio) |
-| `GEMINI_MODEL` | opcional: modelo do Gemini (padrão `gemini-2.5-flash`) |
-| `LOVABLE_API_KEY` | opcional: assistente de IA pelo Lovable, usado só se não houver `GEMINI_API_KEY` |
+| `N8N_ANALISE_WEBHOOK_URL` | webhook do workflow de análise no n8n (botão "Rodar análise agora") |
 
 Depois de salvar, faça um *Redeploy*.
 
@@ -68,6 +66,17 @@ curl -H "Authorization: Bearer $N8N_API_KEY" https://SEU-SITE.vercel.app/api/n8n
 ### 4. Workflow pronto
 
 `n8n/alerta-vencimentos-telegram.json`: todo dia às 7h30 consulta os vencimentos e, se houver lote vencendo, manda a mensagem no Telegram. Importe no n8n, escolha a credencial Header Auth no nó HTTP, troque a URL do site e o `SEU_CHAT_ID`.
+
+## Painel de validade com IA
+
+A IA roda só no n8n. O site calcula a previsão e guarda as decisões:
+
+1. **Previsão** (`src/lib/analise/previsao.ts`): data limite = validade − prazo de corte da cultura; demanda = média entre o ritmo dos últimos 30 dias e o mesmo período do ano passado; sobra = disponível − demanda. O histórico de vendas do protótipo é simulado de forma determinística (`historico.ts`).
+2. **`GET /api/n8n/analise`**: abre uma execução e entrega ao n8n os lotes com sobra (sem proposta pendente), com a memória relevante e as instruções da IA.
+3. **`POST /api/n8n/propostas`**: recebe as sugestões da IA, confere de novo (ação da lista, quantidade ≤ sobra, desconto 5–25%; o que falhar vira regra automática), grava como pendente e devolve a `mensagem` do Telegram.
+4. **Painel** (`src/components/painel/PainelIA.tsx`): propostas com aprovar/rejeitar, previsão por lote, prazo de corte por cultura, 6 resumos mensais (molde) e memória da IA.
+
+Tabelas: rode `supabase/migrations/20261027120000_painel_ia.sql`. Sem Supabase o painel funciona com memória do servidor. Workflow do n8n: `n8n/analise-validade-ia.json`.
 
 ## Development
 

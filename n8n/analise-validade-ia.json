@@ -1,0 +1,315 @@
+{
+  "name": "Zênite · Análise de validade com IA",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * *"
+            }
+          ]
+        }
+      },
+      "id": "28e8a15d-d5b7-49c6-898a-3e1b73d42f86",
+      "name": "Todo dia às 6h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rodar-analise",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "358c8fb5-2bfa-4a59-9f0d-c3bd9fc070cc",
+      "name": "Botão do painel",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        220
+      ],
+      "webhookId": "72bbaa10-d9dc-471f-9487-ece76270f6c0"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { gatilho: 'cron' } }];"
+      },
+      "id": "2ec7ee5e-0b63-461b-86c2-1ca0e054742c",
+      "name": "Gatilho: cron",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { gatilho: 'botao' } }];"
+      },
+      "id": "d823c2cd-9f1c-4072-8e8e-92e2451b21d6",
+      "name": "Gatilho: botão",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://estoque-em-dia-sigma.vercel.app/api/n8n/analise?gatilho={{ $json.gatilho }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "89e29b95-7eba-4a0b-972e-bbf2efaaa8ba",
+      "name": "Buscar análise no site",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        110
+      ],
+      "retryOnFail": true,
+      "maxTries": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "// Um item por lote em risco, com o pedido pronto para a IA.\nconst a = $input.first().json;\nif (!a.lotes || a.lotes.length === 0) {\n  return [{ json: { vazio: true, execucao_id: a.execucao_id, instrucoes: a.instrucoes, prompt: 'Sem lotes.' } }];\n}\nreturn a.lotes.map((l) => {\n  const { historico, ...numeros } = l;\n  return { json: {\n    execucao_id: a.execucao_id,\n    lote: l.lote,\n    instrucoes: a.instrucoes,\n    prompt: JSON.stringify({ hoje: a.hoje, lote: numeros, historico }, null, 2),\n  } };\n});"
+      },
+      "id": "a5833322-3077-4c37-a311-24eea696b983",
+      "name": "Um item por lote",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        110
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "={{ $json.instrucoes }}"
+            }
+          ]
+        }
+      },
+      "id": "2b46cbe3-c211-4ccb-a657-563ecad254f7",
+      "name": "Basic LLM Chain",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        880,
+        110
+      ],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
+        "options": {
+          "temperature": 0
+        }
+      },
+      "id": "a7c14ea9-13c4-405b-87d1-d3a91b36c1dd",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        880,
+        330
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Lê a resposta da IA de cada lote e junta tudo num pedido só para o site.\n// O site confere de novo cada proposta; o que vier errado vira regra automática lá.\nfunction ler(j) {\n  let t = j?.text ?? j?.output ?? j?.choices?.[0]?.message?.content;\n  if (typeof t !== 'string') return null;\n  t = t.replace(/```json|```/g, '').trim();\n  const a = t.indexOf('{'), b = t.lastIndexOf('}');\n  if (a < 0 || b < a) return null;\n  try { return JSON.parse(t.slice(a, b + 1)); } catch (e) { return null; }\n}\nconst pedidos = $('Um item por lote').all().map((i) => i.json);\nconst respostas = $input.all().map((i) => i.json);\nconst propostas = [];\npedidos.forEach((p, i) => {\n  if (p.vazio) return;\n  const r = ler(respostas[i]) ?? {};\n  propostas.push({ lote: p.lote, acao: r.acao ?? 'INVALIDA', quantidade: r.quantidade ?? null,\n    desconto_pct: r.desconto_pct ?? null, justificativa: r.justificativa ?? '' });\n});\nreturn [{ json: { execucao_id: pedidos[0]?.execucao_id, propostas } }];"
+      },
+      "id": "4fa8a555-03bd-4d9a-97c9-26730e625de6",
+      "name": "Juntar respostas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        110
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://estoque-em-dia-sigma.vercel.app/api/n8n/propostas",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "2f0d9d9f-e850-4342-81ac-bdf7b9d40ffd",
+      "name": "Enviar propostas ao site",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        110
+      ],
+      "retryOnFail": true,
+      "maxTries": 2
+    },
+    {
+      "parameters": {
+        "chatId": "COLE_AQUI_SEU_CHAT_ID",
+        "text": "={{ $json.mensagem }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "b520bec1-c3c6-4d68-9edd-6a516302b878",
+      "name": "Alerta no Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1540,
+        110
+      ],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Todo dia às 6h": {
+      "main": [
+        [
+          {
+            "node": "Gatilho: cron",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Botão do painel": {
+      "main": [
+        [
+          {
+            "node": "Gatilho: botão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gatilho: cron": {
+      "main": [
+        [
+          {
+            "node": "Buscar análise no site",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gatilho: botão": {
+      "main": [
+        [
+          {
+            "node": "Buscar análise no site",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar análise no site": {
+      "main": [
+        [
+          {
+            "node": "Um item por lote",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Um item por lote": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Juntar respostas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Juntar respostas": {
+      "main": [
+        [
+          {
+            "node": "Enviar propostas ao site",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar propostas ao site": {
+      "main": [
+        [
+          {
+            "node": "Alerta no Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "pinData": {}
+}

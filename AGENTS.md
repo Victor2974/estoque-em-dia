@@ -10,6 +10,6 @@
 <!-- LOVABLE:END -->
 
 - Use the shared Tabs and Chart components for inventory summary views, keeping all summaries derived from the same filtered seed lots so views stay consistent.
-- AI lot advisor: `src/lib/lot-advisor.functions.ts` (server fn) calls `lot-advisor.server.ts`, which streams Lovable AI Gateway server-side with lot data built from `inventory.ts` — keeps the key server-only and answers grounded in the same seed lots.
+- IA fica só no n8n. O site calcula a previsão de sobra (`src/lib/analise/*`), entrega ao n8n em `GET /api/n8n/analise`, recebe as propostas em `POST /api/n8n/propostas` e mostra tudo no painel (`src/components/painel/PainelIA.tsx`).
 - Dados: a página e o assistente leem os lotes por `src/lib/lots.functions.ts` → `lots.server.ts` (Supabase, tabela `lotes_sementes`), caindo para `inventory.ts` quando o Supabase não está configurado. Esquema em `supabase/migrations`.
 - API do n8n: rotas em `src/routes/api/n8n/*`, autenticadas por `N8N_API_KEY` (ver README).
