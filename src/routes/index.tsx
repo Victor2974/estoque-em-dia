@@ -1,5 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from "@/components/ui/dialog";
 import { seeds, daysUntil, statusFor, type Status } from "@/lib/inventory";
 
 export const Route = createFileRoute("/")({
@@ -34,11 +37,16 @@ const statusClass: Record<Status, string> = {
 const normalize = (s: string) =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
+const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const fmt = (iso: string) => iso.split("-").reverse().join("/");
+
 function Index() {
   const [today, setToday] = useState<Date | null>(null);
   const [query, setQuery] = useState("");
   const [crop, setCrop] = useState("Todas as culturas");
   const [seedClass, setSeedClass] = useState("Todas as classes");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showExpired, setShowExpired] = useState(false);
 
   useEffect(() => setToday(new Date()), []);
 
@@ -64,6 +72,9 @@ function Index() {
     {} as Record<Status, number>,
   );
 
+  const selected = rows.find((r) => r.id === selectedId) ?? null;
+  const expired = rows.filter((r) => r.status === "vencido");
+
   const crops = ["Todas as culturas", ...Array.from(new Set(seeds.map((s) => s.crop)))];
   const classes = ["Todas as classes", ...Array.from(new Set(seeds.map((s) => s.seedClass)))];
 
@@ -85,10 +96,18 @@ function Index() {
 
       <section className="mx-auto grid max-w-6xl grid-cols-2 gap-4 px-6 py-8 md:grid-cols-4">
         {(["vencido", "critico", "atencao", "ok"] as Status[]).map((s) => (
-          <div key={s} className="rounded-lg border border-border bg-card p-5">
+          <div
+            key={s}
+            role={s === "vencido" ? "button" : undefined}
+            tabIndex={s === "vencido" ? 0 : undefined}
+            onClick={s === "vencido" ? () => setShowExpired(true) : undefined}
+            onKeyDown={s === "vencido" ? (e) => e.key === "Enter" && setShowExpired(true) : undefined}
+            className={`rounded-lg border border-border bg-card p-5 ${s === "vencido" ? "cursor-pointer transition hover:border-destructive" : ""}`}
+          >
             <span className={`inline-block h-2 w-8 rounded-full ${statusClass[s]}`} />
             <p className="mt-3 font-display text-3xl text-card-foreground">{counts[s] ?? 0}</p>
             <p className="text-sm text-muted-foreground">{statusLabel[s]}</p>
+            {s === "vencido" && <p className="mt-1 text-xs text-destructive">Clique para ver quais</p>}
           </div>
         ))}
       </section>
@@ -121,27 +140,24 @@ function Index() {
           <table className="w-full text-left text-sm">
             <thead className="bg-muted text-muted-foreground">
               <tr>
-                {["Semente", "Cultura", "Lote", "Germinação", "Quantidade", "Local", "Validade", "Situação"].map((h) => (
+                {["Semente", "Cultura", "Lote", "Valor", "Quantidade", "Validade", "Situação"].map((h) => (
                   <th key={h} className="px-4 py-3 font-medium">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {rows.map((s) => (
-                <tr key={s.id} className="border-t border-border text-card-foreground">
+                <tr key={s.id} onClick={() => setSelectedId(s.id)} className="cursor-pointer border-t border-border text-card-foreground transition hover:bg-muted/60">
                   <td className="px-4 py-3">
                     <div className="font-medium">{s.cultivar}</div>
                     <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                      <span>{s.seedClass}</span>
-                      {s.treated && <span>tratada</span>}
-                      <span>pureza {s.purity}%</span>
+                      <span>Clique para ver detalhes</span>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{s.crop}</td>
                   <td className="px-4 py-3 font-mono text-xs">{s.lot}</td>
-                  <td className="px-4 py-3 font-mono text-xs">{s.germination}%</td>
+                  <td className="whitespace-nowrap px-4 py-3 font-medium">{brl(s.price)}<div className="text-xs font-normal text-muted-foreground">por unidade</div></td>
                   <td className="px-4 py-3">{s.quantity} {s.unit}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{s.location}</td>
                   <td className="px-4 py-3">
                     {s.expiry.split("-").reverse().join("/")}
                     <div className="text-xs text-muted-foreground">
@@ -157,7 +173,7 @@ function Index() {
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
+                  <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
                     Nenhuma semente encontrada.
                   </td>
                 </tr>
@@ -171,6 +187,65 @@ function Index() {
           precisa ser reanalisada antes da venda.
         </p>
       </section>
+
+      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelectedId(null)}>
+        <DialogContent>
+          {selected && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{selected.cultivar}</DialogTitle>
+                <DialogDescription>{selected.crop} · lote {selected.lot}</DialogDescription>
+              </DialogHeader>
+              <dl className="grid grid-cols-2 gap-4 text-sm">
+                {[
+                  ["Valor", `${brl(selected.price)} / ${selected.unit}`],
+                  ["Quantidade", `${selected.quantity} ${selected.unit}`],
+                  ["Germinação", `${selected.germination}%`],
+                  ["Pureza", `${selected.purity}%`],
+                  ["Classe", selected.seedClass],
+                  ["Tratada", selected.treated ? "Sim" : "Não"],
+                  ["Local", selected.location],
+                  ["Validade", fmt(selected.expiry)],
+                ].map(([k, v]) => (
+                  <div key={k}>
+                    <dt className="text-xs uppercase tracking-wide text-muted-foreground">{k}</dt>
+                    <dd className="font-medium text-foreground">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showExpired} onOpenChange={setShowExpired}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {expired.length} {expired.length === 1 ? "semente vencida" : "sementes vencidas"}
+            </DialogTitle>
+            <DialogDescription>Lotes cuja validade já passou.</DialogDescription>
+          </DialogHeader>
+          {expired.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum lote vencido.</p>
+          ) : (
+            <ul className="divide-y divide-border text-sm">
+              {expired.map((s) => (
+                <li key={s.id} className="flex items-center justify-between gap-4 py-3">
+                  <div>
+                    <div className="font-medium text-foreground">{s.cultivar}</div>
+                    <div className="text-xs text-muted-foreground">{s.crop} · lote {s.lot}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-medium text-destructive">{fmt(s.expiry)}</div>
+                    <div className="text-xs text-muted-foreground">há {-s.days} dias</div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
