@@ -9,7 +9,7 @@ explique o risco de vencimento de cada um (dias até a validade, valor e quantid
 Não invente lotes nem dados. Formato: lista curta com "Lotes relevantes", depois "Risco" e "O que fazer".`;
 
 export async function askLotAdvisor(question: string): Promise<string> {
-  const apiKey = process.env.LOVABLE_API_KEY;
+  const apiKey = process.env["LOVABLE_API_KEY"];
   if (!apiKey) throw new Error("Assistente não configurado.");
   const today = new Date();
   const lots = seeds.map((s) => {

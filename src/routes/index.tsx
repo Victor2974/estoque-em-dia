@@ -194,7 +194,7 @@ function Index() {
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="h-auto flex-wrap justify-start gap-1">
             {[["indicadores", "Indicadores do estoque"], ["calendario", "Calendário de vencimentos"]].map(([v, l]) => (
-              <TabsTrigger key={v} value={v!} onClick={() => tab === v && setTab("")}>
+              <TabsTrigger key={v} value={v!} onMouseDown={(e) => { if (tab === v) { e.preventDefault(); setTab(""); } }}>
                 {l} {tab === v ? "▴" : "▾"}
               </TabsTrigger>
             ))}
