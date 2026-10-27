@@ -9,8 +9,9 @@ explique o risco de vencimento de cada um (dias até a validade, valor e quantid
 Não invente lotes nem dados. Formato: lista curta com "Lotes relevantes", depois "Risco" e "O que fazer".`;
 
 export async function askLotAdvisor(question: string): Promise<string> {
-  const apiKey = process.env["LOVABLE_API_KEY"];
-  if (!apiKey) throw new Error("Assistente não configurado.");
+  const geminiKey = process.env["GEMINI_API_KEY"]?.trim();
+  const lovableKey = process.env["LOVABLE_API_KEY"]?.trim();
+  if (!geminiKey && !lovableKey) throw new Error("Assistente não configurado.");
   const today = new Date();
   const { loadLots } = await import("@/lib/lots.server");
   const { lots: seeds } = await loadLots();
@@ -23,18 +24,34 @@ export async function askLotAdvisor(question: string): Promise<string> {
       valorDoLoteBRL: Math.round(stockValueFor(s)), local: s.location,
     };
   });
+  const content = `Hoje é ${today.toISOString().slice(0, 10)}.\nLotes:\n${JSON.stringify(lots)}\n\nDúvida: ${question}`;
+
+  // Gemini (Google AI Studio) pelo endpoint compatível com a OpenAI — é o que roda no Vercel.
+  if (geminiKey) {
+    const gemini = createOpenAI({
+      baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
+      apiKey: geminiKey,
+    });
+    const result = streamText({
+      model: gemini.chat(process.env["GEMINI_MODEL"]?.trim() || "gemini-2.5-flash"),
+      system: INSTRUCTIONS,
+      messages: [{ role: "user", content }],
+      temperature: 0.2,
+      maxRetries: 1,
+    });
+    return await result.text;
+  }
+
+  // Alternativa: Lovable AI Gateway (quando o site roda dentro do Lovable).
   const provider = createOpenAI({
     baseURL: "https://ai.gateway.lovable.dev/v1",
-    apiKey,
-    headers: { "Lovable-API-Key": apiKey, "X-Lovable-AIG-SDK": "vercel-ai-sdk" },
+    apiKey: lovableKey!,
+    headers: { "Lovable-API-Key": lovableKey!, "X-Lovable-AIG-SDK": "vercel-ai-sdk" },
   });
   const result = streamText({
     model: provider.responses("openai/gpt-6-astra"),
     instructions: INSTRUCTIONS,
-    messages: [{
-      role: "user",
-      content: `Hoje é ${today.toISOString().slice(0, 10)}.\nLotes:\n${JSON.stringify(lots)}\n\nDúvida: ${question}`,
-    }],
+    messages: [{ role: "user", content }],
     maxRetries: 0,
     providerOptions: {
       openai: {

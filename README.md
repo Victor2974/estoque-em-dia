@@ -33,9 +33,13 @@ Segurança: leitura pública dos lotes (é uma vitrine); escrita só pelo servid
 | `SUPABASE_SERVICE_ROLE_KEY` | escrita pela API do n8n |
 | `N8N_API_KEY` | segredo que o n8n manda no header (gere com `openssl rand -hex 32`) |
 | `N8N_WEBHOOK_URL` | opcional: webhook do n8n avisado a cada alteração |
-| `LOVABLE_API_KEY` | opcional: assistente de IA |
+| `GEMINI_API_KEY` | assistente de IA do site (chave do Google AI Studio) |
+| `GEMINI_MODEL` | opcional: modelo do Gemini (padrão `gemini-2.5-flash`) |
+| `LOVABLE_API_KEY` | opcional: assistente de IA pelo Lovable, usado só se não houver `GEMINI_API_KEY` |
 
 Depois de salvar, faça um *Redeploy*.
+
+No Vercel o build gera automaticamente as funções no formato da Vercel (preset `vercel` do Nitro); no Lovable continua o padrão Cloudflare.
 
 ### 3. API para o n8n
 

@@ -12,4 +12,6 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // No Vercel o build sai no formato da Vercel (funções serverless); no Lovable continua Cloudflare.
+  ...(process.env["VERCEL"] ? { nitro: { preset: "vercel" } } : {}),
 });

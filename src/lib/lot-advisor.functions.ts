@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 
 export const askAdvisor = createServerFn({ method: "POST" })
-  .inputValidator((input: { question: string }) => {
+  .validator((input: { question: string }) => {
     const q = String(input?.question ?? "").trim();
     if (q.length < 3 || q.length > 1000) throw new Error("Descreva a dúvida (3 a 1000 caracteres).");
     return { question: q };
