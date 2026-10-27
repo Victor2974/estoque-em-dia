@@ -10,33 +10,103 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiN8nStatusRouteImport } from './routes/api/n8n/status'
+import { Route as ApiN8nVencimentosRouteImport } from './routes/api/n8n/vencimentos'
+import { Route as ApiN8nLotesIndexRouteImport } from './routes/api/n8n/lotes/index'
+import { Route as ApiN8nLotesLoteIndexRouteImport } from './routes/api/n8n/lotes/$lote/index'
+import { Route as ApiN8nLotesLoteMovimentacoesRouteImport } from './routes/api/n8n/lotes/$lote/movimentacoes'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiN8nStatusRoute = ApiN8nStatusRouteImport.update({
+  id: '/api/n8n/status',
+  path: '/api/n8n/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiN8nVencimentosRoute = ApiN8nVencimentosRouteImport.update({
+  id: '/api/n8n/vencimentos',
+  path: '/api/n8n/vencimentos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiN8nLotesIndexRoute = ApiN8nLotesIndexRouteImport.update({
+  id: '/api/n8n/lotes/',
+  path: '/api/n8n/lotes/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiN8nLotesLoteIndexRoute = ApiN8nLotesLoteIndexRouteImport.update({
+  id: '/api/n8n/lotes/$lote/',
+  path: '/api/n8n/lotes/$lote/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiN8nLotesLoteMovimentacoesRoute =
+  ApiN8nLotesLoteMovimentacoesRouteImport.update({
+    id: '/api/n8n/lotes/$lote/movimentacoes',
+    path: '/api/n8n/lotes/$lote/movimentacoes',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/n8n/status': typeof ApiN8nStatusRoute
+  '/api/n8n/vencimentos': typeof ApiN8nVencimentosRoute
+  '/api/n8n/lotes/': typeof ApiN8nLotesIndexRoute
+  '/api/n8n/lotes/$lote/movimentacoes': typeof ApiN8nLotesLoteMovimentacoesRoute
+  '/api/n8n/lotes/$lote/': typeof ApiN8nLotesLoteIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/n8n/status': typeof ApiN8nStatusRoute
+  '/api/n8n/vencimentos': typeof ApiN8nVencimentosRoute
+  '/api/n8n/lotes': typeof ApiN8nLotesIndexRoute
+  '/api/n8n/lotes/$lote/movimentacoes': typeof ApiN8nLotesLoteMovimentacoesRoute
+  '/api/n8n/lotes/$lote': typeof ApiN8nLotesLoteIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/n8n/status': typeof ApiN8nStatusRoute
+  '/api/n8n/vencimentos': typeof ApiN8nVencimentosRoute
+  '/api/n8n/lotes/': typeof ApiN8nLotesIndexRoute
+  '/api/n8n/lotes/$lote/movimentacoes': typeof ApiN8nLotesLoteMovimentacoesRoute
+  '/api/n8n/lotes/$lote/': typeof ApiN8nLotesLoteIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/api/n8n/status'
+    | '/api/n8n/vencimentos'
+    | '/api/n8n/lotes/'
+    | '/api/n8n/lotes/$lote/movimentacoes'
+    | '/api/n8n/lotes/$lote/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/api/n8n/status'
+    | '/api/n8n/vencimentos'
+    | '/api/n8n/lotes'
+    | '/api/n8n/lotes/$lote/movimentacoes'
+    | '/api/n8n/lotes/$lote'
+  id:
+    | '__root__'
+    | '/'
+    | '/api/n8n/status'
+    | '/api/n8n/vencimentos'
+    | '/api/n8n/lotes/'
+    | '/api/n8n/lotes/$lote/movimentacoes'
+    | '/api/n8n/lotes/$lote/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiN8nStatusRoute: typeof ApiN8nStatusRoute
+  ApiN8nVencimentosRoute: typeof ApiN8nVencimentosRoute
+  ApiN8nLotesIndexRoute: typeof ApiN8nLotesIndexRoute
+  ApiN8nLotesLoteMovimentacoesRoute: typeof ApiN8nLotesLoteMovimentacoesRoute
+  ApiN8nLotesLoteIndexRoute: typeof ApiN8nLotesLoteIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +118,51 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/n8n/status': {
+      id: '/api/n8n/status'
+      path: '/api/n8n/status'
+      fullPath: '/api/n8n/status'
+      preLoaderRoute: typeof ApiN8nStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/n8n/vencimentos': {
+      id: '/api/n8n/vencimentos'
+      path: '/api/n8n/vencimentos'
+      fullPath: '/api/n8n/vencimentos'
+      preLoaderRoute: typeof ApiN8nVencimentosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/n8n/lotes/': {
+      id: '/api/n8n/lotes/'
+      path: '/api/n8n/lotes'
+      fullPath: '/api/n8n/lotes/'
+      preLoaderRoute: typeof ApiN8nLotesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/n8n/lotes/$lote/': {
+      id: '/api/n8n/lotes/$lote/'
+      path: '/api/n8n/lotes/$lote'
+      fullPath: '/api/n8n/lotes/$lote/'
+      preLoaderRoute: typeof ApiN8nLotesLoteIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/n8n/lotes/$lote/movimentacoes': {
+      id: '/api/n8n/lotes/$lote/movimentacoes'
+      path: '/api/n8n/lotes/$lote/movimentacoes'
+      fullPath: '/api/n8n/lotes/$lote/movimentacoes'
+      preLoaderRoute: typeof ApiN8nLotesLoteMovimentacoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiN8nStatusRoute: ApiN8nStatusRoute,
+  ApiN8nVencimentosRoute: ApiN8nVencimentosRoute,
+  ApiN8nLotesIndexRoute: ApiN8nLotesIndexRoute,
+  ApiN8nLotesLoteMovimentacoesRoute: ApiN8nLotesLoteMovimentacoesRoute,
+  ApiN8nLotesLoteIndexRoute: ApiN8nLotesLoteIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

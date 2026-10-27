@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { askAdvisor } from "@/lib/lot-advisor.functions";
+import { getLots } from "@/lib/lots.functions";
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, XAxis, YAxis } from "recharts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
@@ -9,7 +10,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
 import {
-  seeds, daysUntil, statusFor, stockTotals, expiringByMonth, availableFor,
+  daysUntil, statusFor, stockTotals, expiringByMonth, availableFor,
   stockValueFor, hectaresCovered, seedClassInfo, statusRange, lotStateInfo,
   contact, type Status, type SeedClass,
 } from "@/lib/inventory";
@@ -27,6 +28,7 @@ export const routeHead = () => ({
 
 export const Route = createFileRoute("/")({
   head: routeHead,
+  loader: () => getLots(),
   component: Index,
 });
 
@@ -136,6 +138,7 @@ function LotAdvisor() {
 }
 
 function Index() {
+  const { lots: seeds } = Route.useLoaderData();
   const [today, setToday] = useState<Date | null>(null);
   const [query, setQuery] = useState("");
   const [crop, setCrop] = useState("Todas as culturas");
@@ -161,7 +164,7 @@ function Index() {
           normalize(`${s.cultivar} ${s.crop} ${s.lot} ${s.supplier} ${s.harvest}`).includes(q),
       )
       .sort((a, b) => a.days - b.days);
-  }, [today, query, crop, seedClass]);
+  }, [seeds, today, query, crop, seedClass]);
 
   const counts = rows.reduce(
     (acc, r) => ({ ...acc, [r.status]: (acc[r.status] ?? 0) + 1 }),

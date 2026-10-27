@@ -1,6 +1,6 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { streamText } from "ai";
-import { seeds, daysUntil, statusFor, availableFor, stockValueFor } from "@/lib/inventory";
+import { daysUntil, statusFor, availableFor, stockValueFor } from "@/lib/inventory";
 
 const INSTRUCTIONS = `Você é um assistente do estoque de sementes da Inova Agro (Zênite Sementes).
 Responda em português do Brasil, de forma curta e prática, para quem cuida do estoque.
@@ -12,6 +12,8 @@ export async function askLotAdvisor(question: string): Promise<string> {
   const apiKey = process.env["LOVABLE_API_KEY"];
   if (!apiKey) throw new Error("Assistente não configurado.");
   const today = new Date();
+  const { loadLots } = await import("@/lib/lots.server");
+  const { lots: seeds } = await loadLots();
   const lots = seeds.map((s) => {
     const days = daysUntil(s.expiry, today);
     return {
